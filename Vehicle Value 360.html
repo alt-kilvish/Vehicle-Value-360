@@ -1,0 +1,728 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Vehicle Value 360</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: internal enterprise app. Fixed app bar, persistent 4-step tab navigation, a page header that answers where/what/what-to-do, then white content surfaces on a light grey canvas. Deliberately single light theme. */
+:root{
+  --canvas:#f3f5f9; --surface:#ffffff; --ink:#14213d; --ink-2:#44536f; --muted:#6b7894;
+  --line:#e2e7ef; --line-2:#cfd7e4;
+  --blue:#0070ad; --blue-dark:#005a8c; --blue-tint:#e8f3fa; --blue-tint-2:#f3f9fd;
+  --good:#17804a; --good-tint:#e8f5ee; --bad:#b3261e; --bad-tint:#fcecea; --amber:#8a5a00; --amber-tint:#fff5e0;
+  --f:"Source Sans 3","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--canvas);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.55;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid rgba(0,112,173,.45);outline-offset:2px}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance;color:var(--ink)}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.good{color:var(--good)} .bad{color:var(--bad)} .zero{color:var(--muted)}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:28px}
+
+/* app bar */
+.appbar{background:var(--ink);color:#fff}
+.appbar .wrap{display:flex;align-items:center;gap:14px;min-height:56px;flex-wrap:wrap;padding-block:8px}
+.appbar .name{font-weight:600;font-size:17px;letter-spacing:.01em}
+.appbar .mod{color:#b9c6de;font-size:15px}
+.appbar .env{margin-left:auto;font-size:13.5px;background:rgba(255,255,255,.12);border-radius:4px;padding:3px 10px;color:#fff}
+
+/* step nav */
+.stepnav{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:20}
+.stepnav ol{list-style:none;margin:0 auto;padding:0 28px;max-width:1120px;display:flex;gap:6px;overflow-x:auto}
+.stepnav li{display:flex;align-items:center;flex:none}
+.stepnav li+li::before{content:"→";color:var(--line-2);margin:0 6px 0 2px}
+.tab{background:none;border:0;border-bottom:3px solid transparent;padding:15px 10px 12px;cursor:pointer;display:flex;align-items:center;gap:9px;color:var(--ink-2);font-size:16px;font-weight:500}
+.tab .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:600;background:var(--canvas);color:var(--ink-2);border:1px solid var(--line-2)}
+.tab.done .n{background:var(--blue-tint);border-color:var(--blue-tint);color:var(--blue)}
+.tab[aria-current="step"]{color:var(--ink);border-bottom-color:var(--blue)}
+.tab[aria-current="step"] .n{background:var(--blue);border-color:var(--blue);color:#fff}
+.tab:hover{color:var(--ink)}
+
+/* page header */
+main{padding-block:28px 64px}
+.page{display:flex;flex-direction:column;gap:24px}
+.phead{display:flex;flex-direction:column;gap:8px}
+.crumb{font-size:14.5px;color:var(--muted)}
+.crumb b{color:var(--ink-2);font-weight:600}
+.phead h1{font-size:clamp(28px,3.4vw,36px);line-height:1.15}
+.phead .desc{color:var(--ink-2);font-size:18px;max-width:70ch}
+.todo{display:flex;gap:12px;align-items:flex-start;background:var(--blue-tint-2);border:1px solid #cfe5f3;border-radius:8px;padding:12px 16px;font-size:16px;color:var(--ink);max-width:880px}
+.todo b{color:var(--blue-dark);font-weight:600;white-space:nowrap}
+
+/* surfaces */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:24px 26px}
+.card-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.card-h h2{font-size:20px}
+.card-h .aside{font-size:14.5px;color:var(--muted)}
+.label{font-size:14px;color:var(--muted);font-weight:500}
+.badge{display:inline-block;font-size:13px;font-weight:600;padding:2px 9px;border-radius:4px;background:var(--amber-tint);color:var(--amber);white-space:nowrap}
+.badge.blue{background:var(--blue-tint);color:var(--blue-dark)}
+.badge.good{background:var(--good-tint);color:var(--good)}
+.badge.bad{background:var(--bad-tint);color:var(--bad)}
+.badge.grey{background:var(--canvas);color:var(--ink-2)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:6px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-weight:600;font-size:16.5px;cursor:pointer}
+.btn:hover{border-color:var(--blue);color:var(--blue-dark)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.primary:hover{background:var(--blue-dark);border-color:var(--blue-dark);color:#fff}
+.btn.big{min-height:54px;font-size:18px;padding:0 28px}
+.btn.link{border:0;background:none;padding:0;min-height:0;color:var(--blue);font-weight:600}
+.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.footer-actions{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:8px}
+
+/* help tooltip */
+.help{position:relative;display:inline-block;vertical-align:1px;margin-left:4px}
+.hbtn{width:20px;height:20px;border-radius:50%;border:1px solid var(--line-2);background:var(--surface);color:var(--blue);font-size:12px;font-weight:700;line-height:1;cursor:help;padding:0;display:inline-grid;place-items:center;font-family:Georgia,serif;font-style:italic}
+.tip{position:absolute;left:50%;transform:translateX(-50%);top:28px;z-index:30;width:max-content;max-width:min(300px,78vw);background:var(--ink);color:#fff;font-size:14.5px;font-weight:400;line-height:1.45;padding:10px 12px;border-radius:6px;box-shadow:0 6px 20px rgba(20,33,61,.18);display:none;text-align:left;font-style:normal;letter-spacing:0;text-transform:none}
+.help:hover .tip,.hbtn:focus+.tip{display:block}
+
+/* 1 · vehicle */
+.vid{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:center}
+.vid svg{width:150px;height:auto}
+.vid h2{font-size:28px;line-height:1.15}
+.vid-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 24px;margin-top:14px}
+.kv{display:flex;flex-direction:column;gap:2px}
+.kv .v{font-size:17px;font-weight:600}
+.vin{font-size:20px!important;letter-spacing:.02em}
+.econ{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+.econ .m{padding:6px 22px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.econ .m:first-child{border-left:0;padding-left:0}
+.econ .m .v{font-size:30px;font-weight:600;line-height:1.1}
+.econ .m .s{font-size:14.5px;color:var(--muted)}
+.hero-kpi{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:22px;padding:18px 22px;border-radius:8px;background:var(--blue-tint-2);border:1px solid #cfe5f3}
+.hero-kpi .v{font-size:36px;font-weight:700;color:var(--blue-dark);line-height:1}
+.question{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.question p{font-size:22px;font-weight:600;max-width:34ch;line-height:1.3}
+
+/* 2 · decision */
+.rec{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:0;padding:0;overflow:hidden;border:2px solid var(--blue)}
+.rec-main{padding:28px 30px;display:flex;flex-direction:column;gap:14px;background:var(--blue-tint-2)}
+.rec-main .what{font-size:clamp(28px,3.4vw,38px);font-weight:700;line-height:1.1}
+.rec-main .val{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.rec-main .val .v{font-size:clamp(40px,5vw,54px);font-weight:700;color:var(--good);line-height:1}
+.rec-main .val .u{font-size:16.5px;color:var(--ink-2);max-width:22ch;line-height:1.3}
+.rec-side{padding:28px 30px;display:flex;flex-direction:column;gap:14px;border-left:1px solid var(--line)}
+.reasons{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.reasons li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;font-size:17px;line-height:1.4}
+.reasons li::before{content:"✓";width:24px;height:24px;border-radius:50%;background:var(--good-tint);color:var(--good);display:grid;place-items:center;font-size:14px;font-weight:700}
+.second{font-size:15.5px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:12px}
+table{border-collapse:collapse;width:100%}
+.tbl{overflow-x:auto}
+.opts th{font-size:14px;color:var(--muted);font-weight:600;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+.opts td{padding:14px;border-bottom:1px solid var(--line);font-size:17px;vertical-align:middle}
+.opts tr:last-child td{border-bottom:0}
+.opts tbody tr{cursor:pointer}
+.opts tbody tr:hover td{background:var(--blue-tint-2)}
+.opts tr.is-rec td{background:var(--blue-tint)}
+.opts tr.is-rec td:first-child{font-weight:700;box-shadow:inset 4px 0 0 var(--blue)}
+.opts .val{text-align:right;font-weight:600;white-space:nowrap;width:180px}
+.opts .barc{width:34%}
+.bar{position:relative;height:10px;background:var(--canvas);border-radius:5px}
+.bar .z{position:absolute;left:50%;top:-4px;bottom:-4px;width:2px;background:var(--line-2)}
+.bar .b{position:absolute;top:0;height:10px;border-radius:5px}
+.hint{font-size:15px;color:var(--muted)}
+
+details.more{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.more>summary{cursor:pointer;list-style:none;padding:16px 22px;font-weight:600;color:var(--blue);display:flex;align-items:center;gap:10px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"▸";font-size:14px;transition:transform .15s}
+details.more[open]>summary::before{transform:rotate(90deg)}
+details.more>summary .sub{color:var(--muted);font-weight:400;font-size:15px}
+.more-body{padding:4px 22px 22px;display:flex;flex-direction:column;gap:16px;font-size:15.5px;color:var(--ink-2)}
+.formula{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;color:var(--ink);background:var(--canvas);border-radius:6px;padding:14px 16px;overflow-x:auto;white-space:nowrap}
+.tech th,.tech td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-size:15px}
+.tech th{color:var(--muted);font-weight:600}
+.tech th:first-child,.tech td:first-child{text-align:left;padding-left:0}
+.tech tr.rec td{background:var(--blue-tint-2);font-weight:600}
+.tech tfoot td{font-weight:700;border-bottom:0}
+.tech input.cell{width:70px;border:1px solid var(--line-2);border-radius:5px;padding:4px 6px;text-align:right;font-size:15px;background:var(--surface)}
+.inrow{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:15px;color:var(--ink-2);font-weight:500}
+.field input,.field select,.field textarea,select.inline{border:1px solid var(--line-2);border-radius:6px;padding:10px 12px;font-size:16.5px;background:var(--surface);min-width:0;max-width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);outline:none}
+.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.edited{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--amber-tint);color:var(--amber);border-radius:8px;padding:10px 16px;font-size:15.5px}
+
+/* 3 · why */
+.why3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.rs{display:flex;flex-direction:column;gap:10px}
+.rs .top{display:flex;align-items:center;gap:10px}
+.rs .idx{width:30px;height:30px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;flex:none}
+.rs h3{font-size:19px}
+.rs .tag{font-size:13.5px;color:var(--muted)}
+.rs .fig{font-size:30px;font-weight:700;line-height:1.1}
+.rs .fig span{font-size:17px;font-weight:500;color:var(--muted)}
+.rs p{font-size:16px;color:var(--ink-2)}
+.seg{display:inline-flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line-2);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-size:15px;font-weight:500;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.veco{display:flex;flex-direction:column;gap:18px}
+.veco-row{display:grid;grid-template-columns:200px minmax(0,1fr) 120px;gap:18px;align-items:center}
+.veco-row .nm{font-size:17px;font-weight:600}
+.veco-row .track{height:34px;background:var(--canvas);border-radius:6px;overflow:hidden}
+.veco-row .fill{height:100%;border-radius:6px}
+.veco-row .v{font-size:28px;font-weight:700;text-align:right}
+.takeaway{border-left:4px solid var(--blue);padding:6px 0 6px 18px;font-size:19px;line-height:1.45}
+.takeaway b{font-weight:700}
+.sens{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;align-items:center}
+.sens input[type=range]{width:100%;accent-color:var(--blue);height:28px}
+
+/* 4 · approve & learn */
+.appr{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:0;padding:0;overflow:hidden;border:2px solid var(--blue)}
+.appr-l{padding:26px 30px;display:flex;flex-direction:column;gap:18px}
+.appr-r{padding:26px 30px;background:var(--blue-tint-2);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:14px;justify-content:center}
+.arow{display:grid;grid-template-columns:170px minmax(0,1fr);gap:14px;align-items:baseline;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.arow:last-child{border-bottom:0;padding-bottom:0}
+.arow .k{font-size:15px;color:var(--muted);font-weight:500}
+.arow .v{font-size:18px;font-weight:600}
+.arow .v.money{font-size:30px;color:var(--good);font-weight:700}
+.status{display:flex;align-items:center;gap:10px;font-size:16px;padding:10px 14px;border-radius:6px;background:var(--amber-tint);color:var(--amber);font-weight:600}
+.status.ok{background:var(--good-tint);color:var(--good)}
+.status.err{background:var(--bad-tint);color:var(--bad)}
+.ovr{display:flex;flex-direction:column;gap:12px;padding-top:6px;border-top:1px solid var(--line-2)}
+.loop{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0}
+.loop li{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:0 6px}
+.loop li::before{content:"";position:absolute;top:17px;left:-50%;right:50%;height:2px;background:var(--line-2)}
+.loop li:first-child::before{display:none}
+.loop li.done::before,.loop li.cur::before{background:var(--blue)}
+.loop .dot{width:36px;height:36px;border-radius:50%;border:2px solid var(--line-2);background:var(--surface);display:grid;place-items:center;font-weight:700;font-size:15px;color:var(--muted);position:relative;z-index:1}
+.loop li.done .dot{background:var(--blue);border-color:var(--blue);color:#fff}
+.loop li.cur .dot{border-color:var(--blue);color:var(--blue);box-shadow:0 0 0 5px var(--blue-tint)}
+.loop .t{font-size:15.5px;font-weight:600;line-height:1.25}
+.loop .s{font-size:13.5px;color:var(--muted);line-height:1.3}
+.outg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.ledger th{font-size:14px;color:var(--muted);font-weight:600;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+.ledger td{padding:12px;border-bottom:1px solid var(--line);font-size:16.5px}
+.ledger tr:last-child td{border-bottom:0}
+.ledger th:first-child,.ledger td:first-child{padding-left:0}
+.ledger .learn{color:var(--ink-2);font-size:15.5px}
+.principle{display:flex;flex-direction:column;gap:6px;padding:22px 26px;border-radius:10px;background:var(--ink);color:#fff}
+.principle .a{font-size:16.5px;color:#c9d4ea}
+.principle .q{font-size:clamp(22px,2.6vw,28px);font-weight:600;line-height:1.25}
+
+/* vehicle selector (screen 1) */
+.vsel h2{font-size:20px;margin-bottom:12px}
+.combo{position:relative;max-width:620px}
+.combo-box{display:flex;align-items:center;gap:10px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);padding:0 14px;min-height:54px}
+.combo-box:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,112,173,.15)}
+.combo-box svg{flex:none}
+.combo-box input{flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:18px;padding:12px 0}
+.combo-box input::placeholder{color:var(--muted)}
+.combo-toggle{border:0;background:none;cursor:pointer;padding:8px;color:var(--ink-2);font-size:14px;line-height:1}
+.combo-list{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:25;list-style:none;margin:0;padding:6px;background:var(--surface);border:1px solid var(--line-2);border-radius:8px;box-shadow:0 10px 28px rgba(20,33,61,.14);max-height:320px;overflow-y:auto}
+.combo-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-radius:6px;cursor:pointer;font-size:17px}
+.combo-list li .vv{font-weight:600;white-space:nowrap}
+.combo-list li .mm{color:var(--ink-2)}
+.combo-list li[aria-selected="true"],.combo-list li:hover{background:var(--blue-tint)}
+.combo-list li.empty{cursor:default;color:var(--muted);background:none}
+.combo-help{margin-top:10px;font-size:15.5px;color:var(--muted)}
+.vin-change{margin-top:4px;font-size:15px;align-self:flex-start;justify-content:flex-start}
+
+@media (max-width:900px){
+  .rec,.appr,.sens{grid-template-columns:minmax(0,1fr)}
+  .rec-side,.appr-r{border-left:0;border-top:1px solid var(--line)}
+  .why3{grid-template-columns:minmax(0,1fr)}
+  .econ{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:18px}
+  .econ .m:nth-child(3){border-left:0;padding-left:0}
+  .vid-grid,.outg{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .loop{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:22px}
+  .loop li:nth-child(4)::before{display:none}
+}
+@media (max-width:600px){
+  .wrap,.stepnav ol{padding-inline:16px}
+  .card{padding:20px 18px}
+  .vid{grid-template-columns:minmax(0,1fr)}
+  .vid svg{width:120px}
+  .vid-grid,.econ,.outg{grid-template-columns:minmax(0,1fr)}
+  .econ .m{border-left:0;padding-left:0}
+  .veco-row{grid-template-columns:minmax(0,1fr) auto}
+  .veco-row .track{grid-column:1/-1;grid-row:2}
+  .arow{grid-template-columns:minmax(0,1fr)}
+  .opts .barc{display:none}
+  .opts td,.opts th{padding:12px 8px}
+  .tab .t{font-size:15px}
+  .rec-main,.rec-side,.appr-l,.appr-r{padding:22px 18px}
+}
+</style>
+
+<header class="appbar">
+  <div class="wrap">
+    <span class="name">Vehicle Value 360</span>
+    <span class="mod">Vehicle incentives · Automotive Group</span>
+    <span class="env">Illustrative prototype · modelled data</span>
+  </div>
+</header>
+
+<nav class="stepnav" aria-label="Workflow steps">
+  <ol>
+    <li><button class="tab" data-s="1" type="button"><span class="n">1</span><span class="t">Vehicle</span></button></li>
+    <li><button class="tab" data-s="2" type="button"><span class="n">2</span><span class="t">Decision</span></button></li>
+    <li><button class="tab" data-s="3" type="button"><span class="n">3</span><span class="t">Why</span></button></li>
+    <li><button class="tab" data-s="4" type="button"><span class="n">4</span><span class="t">Approve &amp; Learn</span></button></li>
+  </ol>
+</nav>
+
+<main class="wrap">
+
+<!-- ============ 1 · VEHICLE ============ -->
+<section class="page" data-screen="1">
+  <div class="phead">
+    <span class="crumb">Step 1 of 4 · <b>Vehicle</b></span>
+    <h1>One vehicle, one economic decision</h1>
+    <p class="desc">This is the vehicle being considered for an incentive, and what it is worth to the Group before any offer.</p>
+    <div class="todo"><b>What to do:</b><span>Check the vehicle and its economics, then continue to the decision.</span></div>
+  </div>
+
+  <div class="card vsel">
+    <h2><label for="vinInput">Select a vehicle</label></h2>
+    <div class="combo" id="combo">
+      <div class="combo-box">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="#6b7894" stroke-width="2"/><path d="M13 13l5 5" stroke="#6b7894" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="vinInput" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="vinList" autocomplete="off" placeholder="Search VIN or select vehicle">
+        <button class="combo-toggle" id="vinToggle" type="button" aria-label="Show all vehicles" tabindex="-1">▼</button>
+      </div>
+      <ul class="combo-list" id="vinList" role="listbox" aria-label="Vehicles" hidden></ul>
+    </div>
+    <p class="combo-help">Select a vehicle to view its economics and make an incentive decision.</p>
+  </div>
+
+  <div class="card">
+    <div class="vid">
+      <svg viewBox="0 0 320 110" aria-hidden="true">
+        <path d="M18 78 L30 58 Q38 46 58 44 L108 40 L140 22 Q150 16 166 16 L226 16 Q240 16 250 26 L272 46 L292 52 Q304 56 304 68 L304 78" fill="none" stroke="#14213d" stroke-width="3"/>
+        <path d="M18 78 L64 78 M112 78 L218 78 M266 78 L304 78" stroke="#14213d" stroke-width="3"/>
+        <path d="M146 44 L152 26 L200 24 L200 44 Z M208 44 L208 24 L236 24 L256 44 Z" fill="#e8f3fa" stroke="#0070ad" stroke-width="2"/>
+        <circle cx="88" cy="80" r="19" fill="#ffffff" stroke="#14213d" stroke-width="3"/><circle cx="88" cy="80" r="6" fill="#0070ad"/>
+        <circle cx="242" cy="80" r="19" fill="#ffffff" stroke="#14213d" stroke-width="3"/><circle cx="242" cy="80" r="6" fill="#0070ad"/>
+      </svg>
+      <div>
+        <span class="label">Vehicle</span>
+        <h2>Compact petrol SUV</h2>
+        <div class="vid-grid">
+          <div class="kv"><span class="label">VIN</span><span class="v vin" id="vinShown">Not assigned</span><span class="hint">Illustrative record</span><button class="btn link vin-change" id="vinChange" type="button" hidden>Change vehicle</button></div>
+          <div class="kv"><span class="label">Customer segment</span><span class="v">Private buyers</span></div>
+          <div class="kv"><span class="label">Market</span><span class="v">Pilot market</span></div>
+          <div class="kv"><span class="label">Data status</span><span class="v"><span class="badge">Illustrative / Modelled</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Vehicle economics</h2><span class="aside">Before any incentive</span></div>
+    <div class="econ" id="econ"></div>
+    <div class="hero-kpi" id="heroKpi"></div>
+  </div>
+
+  <div class="card question">
+    <p>Does an incentive create positive incremental Group lifetime value?</p>
+    <button class="btn primary big" data-go="2" type="button">Continue to decision →</button>
+  </div>
+</section>
+
+<!-- ============ 2 · DECISION ============ -->
+<section class="page" data-screen="2" hidden>
+  <div class="phead">
+    <span class="crumb">Step 2 of 4 · <b>Decision</b></span>
+    <h1>Six options, one rule</h1>
+    <p class="desc">The engine compares six possible offers and recommends the one that adds the most value to the Group.</p>
+    <div class="todo"><b>What to do:</b><span>Review the recommended offer. Open “See why” for the reasoning, or send it for approval.</span></div>
+  </div>
+
+  <div class="edited" id="editedNote" hidden>Inputs have been changed from the illustrative example. <button class="btn link" id="resetBtn2" type="button">Reset to the original example</button></div>
+
+  <div class="card rec">
+    <div class="rec-main">
+      <span class="badge blue" style="align-self:flex-start">Recommended offer</span>
+      <div class="what" id="recName">—</div>
+      <div class="val"><span class="v num" id="recVal">—</span><span class="u">expected additional Group value per eligible customer <span class="help"><button class="hbtn" type="button" aria-label="Help: additional Group value" aria-describedby="t_add">i</button><span class="tip" role="tooltip" id="t_add">Extra value to the Group for each eligible customer, compared with making no offer. It is after the cost of the incentive, residual-value and credit charges, and after removing buyers who would have bought anyway or switched from a sister brand.</span></span></span></div>
+      <div class="actions"><button class="btn primary" data-go="4" type="button">Send for approval →</button><button class="btn" data-go="3" type="button">See why</button></div>
+    </div>
+    <div class="rec-side">
+      <span class="label">Why this offer</span>
+      <ul class="reasons" id="decReasons"></ul>
+      <p class="second" id="second"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>All six options compared</h2><span class="aside">Select an option to compare it with the recommendation</span></div>
+    <div class="tbl"><table class="opts">
+      <thead><tr><th>Offer</th><th class="barc"></th><th style="text-align:right">Additional Group value <span class="help"><button class="hbtn" type="button" aria-label="Help: additional Group value" aria-describedby="t_add2">i</button><span class="tip" role="tooltip" id="t_add2">Per eligible customer, compared with making no offer. Negative means the offer loses the Group money.</span></span></th><th>Status</th></tr></thead>
+      <tbody id="opts"></tbody>
+    </table></div>
+  </div>
+
+  <details class="more" id="calc2">
+    <summary>View calculation and adjust inputs <span class="sub">· for analysts</span></summary>
+    <div class="more-body">
+      <div class="formula">ΔV(x) = (p₁ − p₀) · (1 − φ − δ) · Lₓ + p₀ · (Lₓ − L₀) − p₁ · (cₓ + rₓ)</div>
+      <p>p₀, p₁: purchase probability without and with the offer · φ: pull-forward share · δ: sister-brand diversion · Lₓ, L₀: Group lifetime contribution with and without the offer · cₓ: Group economic cost · rₓ: residual (r_RV) plus credit (r_credit) charges.</p>
+      <div class="inrow">
+        <div class="field"><label for="in_p0">Purchase probability with no offer (p₀), %</label><input id="in_p0" type="number" step="1" min="0" max="100" style="width:140px"></div>
+        <div class="field"><label for="in_cap">Captive profit per contract, €</label><input id="in_cap" type="number" step="10" min="0" style="width:140px"></div>
+        <span class="hint" style="max-width:380px">Edit any white cell below. Grey values are derived: r_RV from the residual prior, Lₓ from the ledger. All inputs are illustrative (§7.4).</span>
+      </div>
+      <div class="tbl"><table class="tech" id="inTbl"><thead><tr><th>Option</th><th>c</th><th>r_RV</th><th>r_credit</th><th>p₁</th><th>φ</th><th>δ</th><th>Lₓ</th><th>ΔV</th></tr></thead><tbody></tbody></table></div>
+      <ol class="steps" id="ruleSteps"></ol>
+    </div>
+  </details>
+
+  <div class="footer-actions"><button class="btn" data-go="1" type="button">← Back to vehicle</button><button class="btn primary" data-go="3" type="button">Next: see why →</button></div>
+</section>
+
+<!-- ============ 3 · WHY ============ -->
+<section class="page" data-screen="3" hidden>
+  <div class="phead">
+    <span class="crumb">Step 3 of 4 · <b>Why</b></span>
+    <h1 id="whyH">Why the recommendation?</h1>
+    <p class="desc">Three business reasons, and what one vehicle earns for the Group under each offer.</p>
+    <div class="todo"><b>What to do:</b><span>Read the three reasons. Compare with another offer if you want, then continue to approval.</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Three reasons</h2><span class="aside" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">Compared with <span class="seg" id="cmpSeg" role="group" aria-label="Comparison offer"></span></span></div>
+    <div class="why3" id="drivers"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>What one vehicle earns for the Group <span class="help"><button class="hbtn" type="button" aria-label="Help: Group lifetime contribution" aria-describedby="t_glc2">i</button><span class="tip" role="tooltip" id="t_glc2">What one vehicle sale earns for the whole Group over its life: OEM margin, captive finance, aftersales and remarketing, after the incentive and any residual or credit charge.</span></span></h2><span class="aside">Group lifetime contribution per vehicle sold</span></div>
+    <div class="veco" id="veco"></div>
+    <p class="hint" style="margin-top:14px">§6.8 illustrative vehicle-economics comparison, per vehicle sold. This is not the additional Group value per customer shown on the Decision screen.</p>
+  </div>
+
+  <p class="takeaway" id="takeaway"></p>
+
+  <div class="card sens">
+    <div><h2 style="font-size:19px">What if captive finance earns less per contract?</h2><p class="hint" style="margin-top:4px">§7.4 sensitivity: at €500 the €600 subvention falls to +€235 and remains best.</p></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><input type="range" id="capSlider" min="300" max="1200" step="10" aria-label="Captive profit per contract"><span id="sensOut" style="font-size:16.5px"></span></div>
+  </div>
+
+  <details class="more">
+    <summary>View reasoning in detail <span class="sub">· calculation by term</span></summary>
+    <div class="more-body">
+      <p>Additional Group value per eligible customer (ΔV), term by term (§7.1):</p>
+      <div class="tbl"><table class="tech" id="termTbl"><thead><tr><th>Term</th><th class="hA">—</th><th class="hB">—</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+      <p>Per vehicle sold (§6.8):</p>
+      <div class="tbl"><table class="tech" id="ledTbl"><thead><tr><th>€ per vehicle</th><th class="hA">—</th><th class="hB">—</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+    </div>
+  </details>
+
+  <div class="footer-actions"><button class="btn" data-go="2" type="button">← Back to decision</button><button class="btn primary" data-go="4" type="button">Next: approve →</button></div>
+</section>
+
+<!-- ============ 4 · APPROVE & LEARN ============ -->
+<section class="page" data-screen="4" hidden>
+  <div class="phead">
+    <span class="crumb">Step 4 of 4 · <b>Approve &amp; Learn</b></span>
+    <h1>A named person approves. The ledger learns.</h1>
+    <p class="desc">The engine recommends; a person decides. After the sale, actual results are recorded so the next recommendation is better informed.</p>
+    <div class="todo"><b>What to do:</b><span>Approve the recommended offer, or override it with a reason. Then record outcomes as they happen.</span></div>
+  </div>
+
+  <div class="card appr">
+    <div class="appr-l">
+      <div class="card-h" style="margin:0"><h2>Approval request</h2><span class="status" id="apprStatus">Awaiting approval</span></div>
+      <div class="arow"><span class="k">Approver</span><span class="v">Named regional or pricing lead</span></div>
+      <div class="arow"><span class="k">What is being approved</span><span class="v" id="apprWhat">—</span></div>
+      <div class="arow"><span class="k">Expected value</span><span><span class="v money num" id="apprVal">—</span> <span class="hint">additional Group value per eligible customer</span></span></div>
+    </div>
+    <div class="appr-r">
+      <button class="btn primary big" id="approveBtn" type="button">Approve recommendation</button>
+      <button class="btn" id="ovToggle" type="button" aria-expanded="false" aria-controls="ovPanel">Override instead</button>
+      <div class="ovr" id="ovPanel" hidden>
+        <div class="field"><label for="ovSel">Choose a different offer</label><select id="ovSel"></select></div>
+        <div class="field"><label for="reason">Reason for the override (required)</label><textarea id="reason" rows="3"></textarea></div>
+        <button class="btn primary" id="recordBtn" type="button">Record override decision</button>
+      </div>
+      <p class="hint">Every decision is logged with the approver's name. Overrides are logged with reasons.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Learning loop</h2><span class="aside">How each decision improves the next</span></div>
+    <ol class="loop" id="loop"></ol>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Record actual outcome</h2><span class="badge">Future-state · hypothetical entries</span></div>
+    <div class="outg">
+      <div class="field"><label for="oBuy">Actual purchase</label><select id="oBuy"><option value="">Pending</option><option value="yes">Bought</option><option value="no">Did not buy</option></select></div>
+      <div class="field"><label for="oFin">Financing <span class="help"><button class="hbtn" type="button" aria-label="Help: captive finance" aria-describedby="t_cap4">i</button><span class="tip" role="tooltip" id="t_cap4">Captive: the Group's own finance company.</span></span></label><select id="oFin"><option value="">Pending</option><option value="captive">Captive</option><option value="other">Other lender or cash</option></select></div>
+      <div class="field"><label for="oRes">Actual residual value (€) <span class="help"><button class="hbtn" type="button" aria-label="Help: residual value" aria-describedby="t_res4">i</button><span class="tip" role="tooltip" id="t_res4">The vehicle's value when the contract ends, compared with the forecast set at the start.</span></span></label><input id="oRes" type="number" step="100" placeholder="Pending"><span class="hint" id="resHint"></span></div>
+      <div class="field"><label for="oSale">Actual resale (€)</label><input id="oSale" type="number" step="100" placeholder="Pending"></div>
+    </div>
+    <div class="tbl" style="margin-top:22px"><table class="ledger"><thead><tr><th>Vehicle Ledger</th><th>Recorded</th><th>What the engine learns</th></tr></thead><tbody id="ledger"></tbody></table></div>
+  </div>
+
+  <div class="principle">
+    <span class="a">AI estimates. Humans own the exposure.</span>
+    <span class="q">Manage every vehicle for its incremental lifetime value to the Group.</span>
+  </div>
+
+  <div class="footer-actions"><button class="btn" data-go="3" type="button">← Back to why</button><button class="btn" data-go="1" type="button">Start again with the vehicle</button></div>
+</section>
+</main>
+
+<script>
+(function(){
+  const B0 = {price:28000, oemRev:26000, resid:14000, p0:0.20, oem:2200, capPV:890, takeup:0.45, after:300, retShare:0.40, remk:250, rvLoss:0.065, rvDisc:0.10};
+  // Menu order = §7.4 table = the dose ladder (§7.6)
+  const O0 = [
+    {id:'none',    name:'No offer',                short:'No offer',        tag:'no offer',   type:'none',       c:0,    rc:0,   p1:0.20, phi:0,    delta:0},
+    {id:'svc',     name:'3-year service pack',     short:'Service pack',    tag:'service pack', type:'noncash', c:350,  rc:0,   p1:0.26, phi:0.10, delta:0.05},
+    {id:'sub300',  name:'€300 finance subvention', short:'€300 subvention', tag:'€300',       type:'subvention', c:300,  rc:50,  p1:0.30, phi:0.15, delta:0.05},
+    {id:'sub600',  name:'€600 finance subvention', short:'€600 subvention', tag:'€600',       type:'subvention', c:600,  rc:100, p1:0.38, phi:0.15, delta:0.05},
+    {id:'cash750', name:'€750 cash',               short:'€750 cash',       tag:'€750 cash',  type:'cash',       c:750,  rc:0,   p1:0.32, phi:0.25, delta:0.10},
+    {id:'cash1500',name:'€1,500 cash',             short:'€1,500 cash',     tag:'€1,500 cash',type:'cash',       c:1500, rc:0,   p1:0.45, phi:0.30, delta:0.10}
+  ];
+  const clone = x => JSON.parse(JSON.stringify(x));
+  let B = clone(B0), O = clone(O0), cmpId = 'cash1500', decided = null;
+
+  const $ = id => document.getElementById(id);
+  const eur = (v,s) => { const r = Math.round(v), t = Math.abs(r).toLocaleString('en-GB'); if (s) return r>0?'+€'+t:r<0?'−€'+t:'€0'; return (r<0?'−':'')+'€'+t; };
+  const eur1 = v => '€'+(Math.round(v*10)/10).toLocaleString('en-GB');
+  const pct = v => { const x = Math.round(v*1000)/10; return (Number.isInteger(x)?x:x.toFixed(1))+'%'; };
+  const cls = v => Math.round(v)>0?'pos':Math.round(v)<0?'neg':'zero';
+
+
+  // ===== engine (§7.1) =====
+  function compute(){
+    const capExp = Math.floor(B.takeup*B.capPV);               // 45% × €890 ≈ €400 (§7.4)
+    const remkExp = B.retShare*B.remk;                         // 40% × €250 = €100
+    const L0 = B.oem + capExp + B.after + remkExp;             // €3,000
+    const Lsub = B.oem + B.capPV + B.after + remkExp;          // €3,490: every subvention taker uses the captive
+    const rRV = o => o.type==='cash' ? (B.rvLoss/B.rvDisc)*(o.c/B.price)*B.resid*B.retShare : 0;   // €97.5 / €195
+    const ev = O.map(o => {
+      const none = o.type==='none', p1 = none ? B.p0 : o.p1, phi = none?0:o.phi, delta = none?0:o.delta;
+      const Lx = o.type==='subvention' ? Lsub : L0, rv = rRV(o), r = rv + o.rc;
+      const dV = (p1-B.p0)*(1-phi-delta)*Lx + B.p0*(Lx-L0) - p1*(o.c + r);
+      return {o, id:o.id, p1, Lx, rv, r, dV, terms:{
+        'Incremental demand': (p1-B.p0)*Lx, 'Pull-forward': -(p1-B.p0)*phi*Lx, 'Brand diversion': -(p1-B.p0)*delta*Lx,
+        'Captive shift on buyers who buy anyway': B.p0*(Lx-L0), 'Incentive cost': -p1*o.c, 'Residual charge': -p1*rv, 'Credit charge': -p1*o.rc }};
+    });
+    // Rule: offer only ΔV > 0; start at the first option on the ladder with ΔV > 0; step up while marginal ΔV > 0.
+    const ladder = ev.slice(1), mei = ladder.find(e=>e.dV>0) || null;
+    let rec = ev[0], steps = [], stop = null;
+    if (mei){ rec = mei; for (let i = ladder.indexOf(mei)+1; i<ladder.length; i++){ const m = ladder[i].dV-rec.dV; if (m>0 && ladder[i].dV>0){ steps.push([ladder[i],m]); rec = ladder[i]; } else { stop = [ladder[i],m]; break; } } }
+    const second = ladder.filter(e=>e.dV>0 && e!==rec).sort((a,b)=>b.dV-a.dV)[0] || (rec===ev[0] ? null : ev[0]);
+    const vl = e => { const o = e.o; const x = {'OEM contribution before incentive':B.oem, 'Incentive: Group economic cost':-o.c, 'Captive contribution':o.type==='subvention'?B.capPV:capExp, 'Expected credit charge':-o.rc, 'Aftersales (present value)':B.after, 'Remarketing (expected)':remkExp, 'Residual charge from the discount':-e.rv}; return {x, total:Object.values(x).reduce((a,b)=>a+b,0)}; };
+    return {ev, ladder, mei, rec, second, steps, stop, L0, Lsub, vl, byId: id => ev.find(e=>e.id===id)};
+  }
+
+
+  const help = (id, label, text) => `<span class="help"><button class="hbtn" type="button" aria-label="Help: ${label}" aria-describedby="${id}">i</button><span class="tip" role="tooltip" id="${id}">${text}</span></span>`;
+
+  // ===== analyst inputs (built once so typing keeps focus) =====
+  function buildInputs(){
+    $('in_p0').value = +(B.p0*100).toFixed(2); $('in_cap').value = B.capPV; $('capSlider').value = B.capPV;
+    $('inTbl').querySelector('tbody').innerHTML = O.map(o => {
+      const none = o.type==='none';
+      const cell = (k,m) => none ? '' : `<input class="cell" data-id="${o.id}" data-k="${k}" data-m="${m}" type="number" step="any" value="${+(o[k]*m).toFixed(4)}" aria-label="${o.short} ${k}">`;
+      return `<tr id="r_${o.id}"><td>${o.name}</td><td>${none?'€0':cell('c',1)}</td><td class="zero" id="rv_${o.id}"></td><td>${none?'€0':cell('rc',1)}</td>
+        <td>${none?`<span class="zero" id="p1none"></span>`:cell('p1',100)}</td><td>${none?'–':cell('phi',100)}</td><td>${none?'–':cell('delta',100)}</td>
+        <td class="zero" id="lx_${o.id}"></td><td id="dv_${o.id}"></td></tr>`; }).join('');
+    $('inTbl').querySelectorAll('input.cell').forEach(inp => inp.addEventListener('input', () => {
+      const v = parseFloat(inp.value); if (isNaN(v)) return; O.find(o=>o.id===inp.dataset.id)[inp.dataset.k] = v / +inp.dataset.m; render(); }));
+  }
+  $('in_p0').addEventListener('input', e => { const v = parseFloat(e.target.value); if (isNaN(v)) return; B.p0 = v/100; render(); });
+  $('in_cap').addEventListener('input', e => { const v = parseFloat(e.target.value); if (isNaN(v)) return; B.capPV = v; $('capSlider').value = v; render(); });
+  $('capSlider').addEventListener('input', e => { B.capPV = +e.target.value; $('in_cap').value = B.capPV; render(); });
+  $('resetBtn2').addEventListener('click', () => { B = clone(B0); O = clone(O0); cmpId = 'cash1500'; buildInputs(); render(); });
+
+  const gc = e => e.o.c + e.r;                 // Group cost per buyer (incentive + residual + credit charges)
+  const parts = e => { const p = []; if (e.o.c) p.push(`${eur(e.o.c)} incentive`); if (e.rv) p.push(`${eur(e.rv)} residual charge`); if (e.o.rc) p.push(`${eur(e.o.rc)} credit charge`); return p.length ? p.join(' + ') : 'no cost'; };
+  const clsG = v => { const c = cls(v); return c==='pos'?'good':c==='neg'?'bad':'zero'; };
+
+  // ===== render =====
+  let D;
+  function render(){
+    D = compute(); const R = D.rec, S = D.second;
+    const edited = JSON.stringify(B)!==JSON.stringify(B0) || JSON.stringify(O)!==JSON.stringify(O0);
+    $('editedNote').hidden = !edited;
+    const V = D.ev.slice().sort((x,y)=>y.p1-x.p1)[0];      // highest-volume option
+
+    // 1 · vehicle
+    $('econ').innerHTML = [
+      ['Transaction price', eur(B.price), 'Price the customer pays', ''],
+      ['OEM net revenue', eur(B.oemRev), 'Revenue to the manufacturer', ''],
+      ['Forecast residual value'+help('t_res','residual value','Expected value of the vehicle when its contract ends at 36 months. Used when the vehicle is resold.'), eur(B.resid), 'At 36 months', ''],
+      ['Purchase probability'+help('t_pp','purchase probability','Share of eligible customers who buy. Measured with a control group of customers who receive no offer.'), pct(B.p0), 'With no offer, from the control group', '']
+    ].map(([k,v,s]) => `<div class="m"><span class="label">${k}</span><span class="v num">${v}</span><span class="s">${s}</span></div>`).join('');
+    $('heroKpi').innerHTML = `<div><span class="label" style="color:var(--ink-2)">Group lifetime contribution without an offer ${help('t_glc','Group lifetime contribution','What one vehicle sale earns for the whole Group over its life: OEM margin, captive finance, aftersales and remarketing.')}</span><div class="hint">What this sale is worth to the whole Group if no incentive is offered</div></div><span class="v num">${eur(D.L0)}</span>`;
+
+    // 2 · decision
+    $('recName').textContent = R.o.name;
+    $('recVal').textContent = R.id==='none' ? '€0' : eur(R.dV,true);
+    const reasons = [];
+    if (R.id==='none') reasons.push('No option on the menu adds value to the Group.');
+    else {
+      reasons.push(`<b>${pct(R.p1)}</b> of eligible customers buy, against ${pct(B.p0)} with no offer.`);
+      if (R.o.type==='subvention') reasons.push(`Buyers finance with the Group’s captive, raising lifetime contribution from ${eur(D.L0)} to <b>${eur(D.Lsub)}</b>.`);
+      if (V!==R) reasons.push(`Group cost per buyer is <b>${eur(gc(R))}</b>, against ${eur(gc(V))} for ${V.o.short}.`);
+    }
+    $('decReasons').innerHTML = reasons.map(r=>`<li><span>${r}</span></li>`).join('');
+    $('second').innerHTML = S ? `Second best: <b>${S.o.name}</b>, <span class="${clsG(S.dV)} num">${eur(S.dV,true)}</span> per eligible customer` : '';
+    const max = Math.max(1, ...D.ev.map(e=>Math.abs(e.dV)));
+    $('opts').innerHTML = D.ev.map(e => { const x = e.dV/max*50;
+      let st;
+      if (e===R) st = '<span class="badge blue">Recommended</span>';
+      else if (e===S) st = '<span class="badge grey">Second best</span>';
+      else if (e.id==='none') st = '<span class="badge grey">Baseline</span>';
+      else if (e.dV>0) st = '<span class="badge good">Adds value</span>';
+      else st = '<span class="badge bad">Loses value · not offered</span>';
+      return `<tr class="${e===R?'is-rec':''}" data-id="${e.id}" tabindex="0" aria-label="Compare ${e.o.name} with the recommendation">
+        <td>${e.o.name}</td>
+        <td class="barc"><div class="bar"><span class="z"></span><span class="b" style="left:${x>=0?50:50+x}%;width:${Math.abs(x)}%;background:${e===R?'var(--blue)':x>=0?'var(--good)':'var(--bad)'}"></span></div></td>
+        <td class="val num ${clsG(e.dV)}">${eur(e.dV,true)}</td><td>${st}</td></tr>`; }).join('');
+    $('opts').querySelectorAll('tr').forEach(tr => { const f = () => { if (tr.dataset.id!==R.id) cmpId = tr.dataset.id; render(); go(3); };
+      tr.addEventListener('click', f); tr.addEventListener('keydown', k => { if (k.key==='Enter'||k.key===' '){ k.preventDefault(); f(); } }); });
+    D.ev.forEach(e => {
+      $('rv_'+e.id).textContent = e.o.type==='cash' ? eur1(e.rv) : '€0';
+      $('lx_'+e.id).textContent = eur(e.Lx);
+      const c = $('dv_'+e.id); c.textContent = eur(e.dV,true); c.className = clsG(e.dV);
+      $('r_'+e.id).className = e===R ? 'rec' : '';
+    });
+    $('p1none').textContent = pct(B.p0);
+    const nPos = D.ladder.filter(e=>e.dV>0).length;
+    $('ruleSteps').innerHTML = (D.mei ? [
+      `Offer only options with ΔV &gt; 0: ${nPos} option${nPos>1?'s qualify':' qualifies'}.`,
+      `Minimum effective intervention: ${D.mei.o.name} (${eur(D.mei.dV,true)}), the first qualifying option on the menu.`,
+      `Step up while each step adds value: ${D.steps.length ? D.steps.map(([e,m])=>`${e.o.name} ${eur(m,true)}`).join(', then ') + '.' : 'no step adds value.'} ${D.stop?`${D.stop[0].o.name} would change ΔV by ${eur(D.stop[1],true)}, so the engine stops.`:''}`,
+      `Recommend ${R.o.name}; second-best ${S?S.o.name:'none'}. A named human approves.`
+    ] : ['No option has ΔV &gt; 0, so the engine recommends no offer.']).map(x=>`<li>${x}</li>`).join('');
+
+    // 3 · why
+    const others = D.ev.filter(e=>e!==R);
+    if (!others.some(e=>e.id===cmpId)) cmpId = (others.find(e=>e.id==='cash1500')||others[0]).id;
+    const C = D.byId(cmpId);
+    $('cmpSeg').innerHTML = others.map(e => `<button type="button" data-c="${e.id}" aria-pressed="${e.id===cmpId}">${e.o.short}</button>`).join('');
+    $('cmpSeg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { cmpId = b.dataset.c; render(); }));
+    $('whyH').textContent = R.id==='none' ? 'Why no offer?' : `Why the ${R.o.name}?`;
+    const cheaper = gc(R) <= gc(C);
+    $('drivers').innerHTML = `
+      <div class="rs"><div class="top"><span class="idx">1</span><div><h3>More customers buy</h3><span class="tag">Incremental demand</span></div></div>
+        <div class="fig num">${pct(R.p1)} <span>vs ${pct(B.p0)} with no offer</span></div>
+        <p>${R.id==='none'?'With no offer, purchases stay at the control-group rate.':`${pct(R.p1)} of eligible customers buy with the ${R.o.short}, against ${pct(B.p0)} in the control group ${help('t_cg','control group','A small group of eligible customers who receive no offer, used to measure what would have happened anyway.')}. ${C.o.short}: ${pct(C.p1)}.`}</p></div>
+      <div class="rs"><div class="top"><span class="idx">2</span><div><h3>${R.o.type==='subvention'?'More buyers finance with the Group':'Captive finance unchanged'}</h3><span class="tag">Captive economics</span></div></div>
+        ${R.o.type==='subvention'
+          ? `<div class="fig num">${eur(D.Lsub)} <span>vs ${eur(D.L0)}</span></div><p>The subvention routes takers through the captive ${help('t_cap','captive','The Group’s own finance company. A subvention lowers the customer’s finance rate; the Group gives up part of the captive’s margin.')}, increasing lifetime contribution to ${eur(D.Lsub)}.</p>`
+          : `<div class="fig num">${eur(R.Lx)} <span>unchanged</span></div><p>This option leaves captive take-up unchanged, so lifetime contribution stays at ${eur(D.L0)}.</p>`}</div>
+      <div class="rs"><div class="top"><span class="idx">3</span><div><h3>${cheaper?'Lower cost per buyer':'Cost per buyer'}</h3><span class="tag">Controlled downside</span></div></div>
+        <div class="fig num">${eur(gc(R))} <span>vs ${eur(gc(C))}</span></div>
+        <p>Group cost per buyer ${help('t_gc','Group cost per buyer','What the Group gives up for each buyer who takes the offer: the incentive plus any residual-value or credit charge.')}. ${R.o.short}: ${parts(R)}. ${C.o.short}: ${parts(C)}.</p></div>`;
+    const a = D.vl(R), b = D.vl(C), vmax = Math.max(1, a.total, b.total);
+    const row = (nm, t, win) => `<div class="veco-row"><span class="nm">${nm}${win?' <span class="badge blue" style="margin-left:6px">Recommended</span>':''}</span><div class="track"><div class="fill" style="width:${Math.max(0,t)/vmax*100}%;background:${win?'var(--blue)':'#9aa8c2'}"></div></div><span class="v num">${eur(t)}</span></div>`;
+    $('veco').innerHTML = row(R.o.short, a.total, true) + row(C.o.short, b.total, false);
+    $('sensOut').innerHTML = `<b class="num">${eur(B.capPV)}</b> per contract → ${R.o.short} <b class="num ${clsG(R.dV)}">${eur(R.dV,true)}</b>${S?`, second best ${S.o.short} <span class="num ${clsG(S.dV)}">${eur(S.dV,true)}</span>`:''}`;
+    $('takeaway').innerHTML = V!==R
+      ? `${V.o.short} sells the most, ${Math.round(V.p1*100)} per 100 customers, at ${eur(V.dV,true)}. ${R.o.short} sells ${Math.round(R.p1*100)} and creates ${eur(R.dV,true)}. <b>Highest sales volume is not the same as highest Group value.</b>`
+      : `Here the highest-volume option is also the highest-value option. <b>The engine checks value, not volume.</b>`;
+    document.querySelectorAll('.hA').forEach(h=>h.textContent=R.o.short); document.querySelectorAll('.hB').forEach(h=>h.textContent=C.o.short);
+    $('termTbl').querySelector('tbody').innerHTML = Object.keys(R.terms).map(k => `<tr><td>${k}</td><td class="${clsG(R.terms[k])}">${eur(R.terms[k],true)}</td><td class="${clsG(C.terms[k])}">${eur(C.terms[k],true)}</td></tr>`).join('');
+    $('termTbl').querySelector('tfoot').innerHTML = `<tr><td>ΔV per eligible customer</td><td class="${clsG(R.dV)}">${eur(R.dV,true)}</td><td class="${clsG(C.dV)}">${eur(C.dV,true)}</td></tr>`;
+    $('ledTbl').querySelector('tbody').innerHTML = Object.keys(a.x).map(k => `<tr><td>${k}</td><td class="${clsG(a.x[k])}">${eur(a.x[k],true)}</td><td class="${clsG(b.x[k])}">${eur(b.x[k],true)}</td></tr>`).join('');
+    $('ledTbl').querySelector('tfoot').innerHTML = `<tr><td>Group lifetime contribution</td><td>${eur(a.total)}</td><td>${eur(b.total)}</td></tr>`;
+
+    // 4 · approve
+    $('apprWhat').textContent = R.id==='none'
+      ? 'Make no offer to eligible private buyers of the compact petrol SUV in the pilot market'
+      : `Offer the ${R.o.name} to eligible private buyers of the compact petrol SUV in the pilot market`;
+    $('apprVal').textContent = R.id==='none' ? '€0' : eur(R.dV,true);
+    $('approveBtn').textContent = R.id==='none' ? 'Approve: no offer' : `Approve ${R.o.name}`;
+    const prev = $('ovSel').value;
+    const ov = D.ev.filter(e=>e!==R).sort((x,y)=>(y===S)-(x===S));
+    $('ovSel').innerHTML = ov.map(e=>`<option value="${e.id}">${e.o.name} (${eur(e.dV,true)} per customer)</option>`).join('');
+    if (ov.some(e=>e.id===prev)) $('ovSel').value = prev;
+    $('resHint').textContent = `Forecast: ${eur(B.resid)}`;
+    ledger();
+  }
+
+  // ===== approval + outcome =====
+  const setStatus = (cls, text) => { const s = $('apprStatus'); s.className = 'status' + (cls?' '+cls:''); s.textContent = text; };
+  $('approveBtn').addEventListener('click', () => { decided = D.rec.o.name; setStatus('ok', `Approved: ${decided}`); ledger(); });
+  $('ovToggle').addEventListener('click', () => { const p = $('ovPanel'); p.hidden = !p.hidden; $('ovToggle').setAttribute('aria-expanded', !p.hidden); if (!p.hidden) $('ovSel').focus(); });
+  $('recordBtn').addEventListener('click', () => {
+    if (!$('reason').value.trim()){ setStatus('err', 'An override needs a reason before it can be recorded.'); $('reason').focus(); return; }
+    decided = D.byId($('ovSel').value).o.name; setStatus('ok', `Override recorded: ${decided}. Reason logged.`); ledger();
+  });
+  function ledger(){
+    const buy = $('oBuy').value, fin = $('oFin').value, res = $('oRes').value, sale = $('oSale').value;
+    const P = '<span class="zero">Pending</span>';
+    const rows = [
+      ['Decision', decided || P, 'Logged with approver and reason'],
+      ['Actual purchase', buy==='yes'?'Bought':buy==='no'?'Did not buy':P, 'Updates how many customers buy with and without an offer'],
+      ['Financing', fin==='captive'?'Captive':fin==='other'?'Other lender or cash':P, 'Updates the share of buyers who use captive finance'],
+      ['Actual residual value', res!==''?`${eur(+res)} <span class="${clsG(+res-B.resid)}">(${eur(+res-B.resid,true)} vs forecast)</span>`:P, 'Updates residual-value forecasts and the residual charge'],
+      ['Actual resale', sale!==''?eur(+sale):P, 'Updates the expected remarketing result']
+    ];
+    $('ledger').innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="learn">${r[2]}</td></tr>`).join('');
+    const outcome = buy!=='' || fin!=='' || res!=='' || sale!=='';
+    const stage = !decided ? 2 : !outcome ? 3 : 6;   // index of current step
+    const L = [['AI estimates','Purchase, residual and credit estimates'],['Decision Engine evaluates','Applies one rule to all six offers'],['Human approves','Named regional or pricing lead'],['Actual outcome','Purchase, financing, residual, resale'],['Vehicle Ledger','Records results for this vehicle'],['Model learning','Updates estimates for the next decision']];
+    $('loop').innerHTML = L.map((l,i) => `<li class="${i<stage?'done':i===stage?'cur':''}"><span class="dot">${i<stage?'✓':i+1}</span><span class="t">${l[0]}</span><span class="s">${l[1]}</span></li>`).join('');
+  }
+  ['oBuy','oFin'].forEach(id => $(id).addEventListener('change', ledger));
+  ['oRes','oSale'].forEach(id => $(id).addEventListener('input', ledger));
+
+  // ===== vehicle selector (screen 1 · UI only; economics are the same illustrative §7.4 example) =====
+  const VEHICLES = [
+    {vin:'VIN •••• 4821', model:'Compact petrol SUV'},
+    {vin:'VIN •••• 7394', model:'Compact petrol SUV'},
+    {vin:'VIN •••• 1058', model:'Compact petrol SUV'},
+    {vin:'VIN •••• 6217', model:'Compact petrol SUV'},
+    {vin:'VIN •••• 3560', model:'Compact petrol SUV'}
+  ];
+  const vIn = $('vinInput'), vList = $('vinList');
+  let vMatches = VEHICLES.slice(), vActive = -1, vSel = null;
+  const label = v => `${v.vin} — ${v.model}`;
+  function vOpen(){
+    const q = vIn.value.trim().toLowerCase().replace(/[•\s]/g,'').replace(/^vin/,'');
+    vMatches = (vSel && vIn.value===label(vSel)) || !q ? VEHICLES.slice() : VEHICLES.filter(v => label(v).toLowerCase().replace(/[•\s]/g,'').includes(q));
+    vList.innerHTML = vMatches.length
+      ? vMatches.map((v,i) => `<li role="option" id="vopt${i}" aria-selected="${i===vActive}" data-i="${i}"><span class="vv">${v.vin}</span><span class="mm">${v.model}</span></li>`).join('')
+      : `<li class="empty" role="option" aria-disabled="true">No vehicle matches “${vIn.value.replace(/[<>&]/g,'')}”</li>`;
+    vList.hidden = false; vIn.setAttribute('aria-expanded','true');
+    vIn.setAttribute('aria-activedescendant', vActive>=0 && vMatches.length ? 'vopt'+vActive : '');
+    vList.querySelectorAll('li[data-i]').forEach(li => li.addEventListener('mousedown', e => { e.preventDefault(); vChoose(vMatches[+li.dataset.i]); }));
+  }
+  function vClose(){ vList.hidden = true; vIn.setAttribute('aria-expanded','false'); vActive = -1; }
+  function vChoose(v){
+    vSel = v; vIn.value = label(v); vClose();
+    $('vinShown').textContent = v.vin; $('vinChange').hidden = false;
+  }
+  vIn.addEventListener('input', () => { vActive = -1; vOpen(); });
+  vIn.addEventListener('focus', vOpen);
+  vIn.addEventListener('click', vOpen);
+  vIn.addEventListener('blur', () => { vClose(); if (vSel && vIn.value!==label(vSel)) vIn.value = label(vSel); });
+  vIn.addEventListener('keydown', e => {
+    if (e.key==='ArrowDown'){ e.preventDefault(); if (vList.hidden) vOpen(); vActive = Math.min(vActive+1, vMatches.length-1); vOpen(); }
+    else if (e.key==='ArrowUp'){ e.preventDefault(); vActive = Math.max(vActive-1, 0); vOpen(); }
+    else if (e.key==='Enter'){ e.preventDefault(); const v = vMatches[vActive>=0?vActive:0]; if (v && vMatches.length) vChoose(v); }
+    else if (e.key==='Escape'){ vClose(); }
+  });
+  $('vinToggle').addEventListener('mousedown', e => { e.preventDefault(); if (vList.hidden){ vIn.focus(); vOpen(); } else vClose(); });
+  $('vinChange').addEventListener('click', () => { vIn.value = ''; vActive = -1; vIn.scrollIntoView({block:'center'}); vIn.focus(); vOpen(); });
+
+  // ===== navigation =====
+  function go(n){ n = +n;
+    document.querySelectorAll('[data-screen]').forEach(s => s.hidden = +s.dataset.screen !== n);
+    document.querySelectorAll('.tab').forEach(b => { const s = +b.dataset.s; b.classList.toggle('done', s<n); if (s===n) b.setAttribute('aria-current','step'); else b.removeAttribute('aria-current'); });
+    try { history.replaceState(null,'','#s'+n); } catch(e){}
+    window.scrollTo({top:0});
+  }
+  document.querySelectorAll('.tab,[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.s || b.dataset.go)));
+
+  buildInputs(); render();
+  const h = (location.hash||'').match(/^#s([1-4])$/); go(h ? h[1] : 1);
+})();
+</script>
+
+</body></html>
